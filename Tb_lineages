@@ -1,0 +1,94 @@
+#!/usr/bin/env python
+import pandas as pd
+import argparse, csv
+
+## Background
+# Align fasta files to the MTBC reference (MTB_ancestor_reference.bases in the kvarq testsuite e.g.) using Snippy.
+# Provide resulting snps.csv as input to this tool for lineage analysis
+#
+# usage: Tb_lineage.py [-h] [-i INPUT] [-o OUTPUT] [-v] [-q]
+#
+# Detect Tb lineages
+#
+# optional arguments:
+#  -h, --help            show this help message and exit
+#  -i INPUT, --input INPUT
+#                        Input snps.csv
+#  -o OUTPUT, --output OUTPUT
+#                        Output filename
+#  -v, --verbose         Verbose output
+#  -q, --quiet           Suppress log printing to standard out
+
+parser = argparse.ArgumentParser(description='Detect Tb lineages')
+parser.add_argument('-i', '--input', type=str, help="Input snps.csv", default='snps.csv')
+parser.add_argument('-o', '--output', type=str, help="Output filename", default='tb_lineages.txt')
+parser.add_argument('-v', '--verbose', action='store_const',const=True, help="Verbose output")
+parser.add_argument('-q', '--quiet', action='store_const',const=True, help="Suppress log printing to standard out")
+
+args = parser.parse_args()
+
+def print_out(msg, type):
+    if args.quiet:
+        return
+    if type == "DEBUG":
+        if not args.verbose:
+            return
+    print(f"{type}: {msg}")
+
+lineages_SNPs = [
+    (3920109,'T',"lineage1"),
+    (3597682,'T',"lineage1"),
+    (1590555,'T',"lineage1"),
+    (1834177,'C',"lineage2"),
+    (3304966,'A',"lineage2"),
+    (2711722,'G',"lineage2"),
+    ( 301341,'A',"lineage3"),
+    (4266647,'G',"lineage3"),
+    ( 157129,'T',"lineage3"),
+    (3326554,'A',"lineage4"), 
+    (2154724,'C',"lineage4"), 
+    ( 648856,'T',"lineage4"), 
+    (1377185,'G',"lineage5"),
+    ( 801959,'T',"lineage5"),
+    (2859147,'T',"lineage5"),
+    (2427828,'C',"lineage6"),
+    ( 378404,'A',"lineage6"),
+    (4269522,'A',"lineage6"),
+    (  14806,'C',"lineage7"),
+    (1663221,'G',"lineage7"),
+    ( 497126,'A',"lineage7"),
+    (3480645,'G',"lineage_animal"),
+    (1427476,'T',"lineage_animal"),
+    (3624593,'T',"lineage_animal"),
+    (2112832,'C',"lineage_beijing"),
+    (3587446,'A',"lineage_beijing"),
+    (1849051,'T',"lineage_beijing"),
+]
+
+print_out(f"Reading in file: {args.input}", "LOG")
+df = pd.read_csv(args.input)
+print_out(f"Searching for lineage mutations", "LOG")
+
+report_SNPs = []
+report_lineages = set()
+for lineage_SNP in lineages_SNPs:
+    print_out(f"Searching {lineage_SNP}", "DEBUG")
+    pos = lineage_SNP[0]
+    mut = lineage_SNP[1]
+    lin = lineage_SNP[2]
+    hit = df.loc[df['POS'] == pos]
+    if len(hit) == 1:
+        print_out(f"Found SNP at {pos}, checking mutation", "DEBUG")
+        if hit['ALT'].values[0] == mut:
+            print_out(f"Lineage SNP {mut} at {pos} found. Lineage: {lin}", "DEBUG")
+            report_SNPs.append(lineage_SNP)
+            report_lineages.add(lin)
+
+if len(report_SNPs) == 0:
+    print(f"{args.input}: No lineage mutations found")
+else:
+    s= 's' if len(report_lineages) > 1 else ''
+    print(f"{args.input} Lineage{s}: {', '.join(report_lineages)}")
+    with open(args.output, 'w', newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(report_SNPs)
